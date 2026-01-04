@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # Spring Boot HTTPS 서버
+  ssl-server:
+    platform: linux/arm64
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: ssl-server
+    ports:
+      - "8443:8443"
+    volumes:
+      # CERT_GEN 환경 변수로 gen1 또는 gen2 선택
+      - ./certs/${CERT_GEN:-gen1}:/certs:ro
+    environment:
+      - CERT_GENERATION=${CERT_GEN:-gen1}
+    networks:
+      - ssl-test-network
+    healthcheck:
+      test: ["CMD", "sh", "-c", "true"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # JDK 7 클라이언트 (구버전 테스트)
+  client-jdk7:
+    platform: linux/arm64
+    build:
+      context: ./client
+      dockerfile: Dockerfile.jdk7
+    container_name: client-jdk7
+    depends_on:
+      - ssl-server
+    volumes:
+      - ./certs/gen1:/certs/gen1:ro
+      - ./certs/gen2:/certs/gen2:ro
+    environment:
+      - SERVER_URL=https://ssl-server:8443/health
+      - TRUSTSTORE_PATH=${TRUSTSTORE_PATH:-}
+      - TRUSTSTORE_PASSWORD=changeit
+    networks:
+      - ssl-test-network
+
+  # JDK 8u242 클라이언트 (8u251 이전 버전)
+  client-jdk8:
+    platform: linux/arm64
+    build:
+      context: ./client
+      dockerfile: Dockerfile.jdk8
+    container_name: client-jdk8
+    depends_on:
+      - ssl-server
+    volumes:
+      - ./certs/gen1:/certs/gen1:ro
+      - ./certs/gen2:/certs/gen2:ro
+    environment:
+      - SERVER_URL=https://ssl-server:8443/health
+      - TRUSTSTORE_PATH=${TRUSTSTORE_PATH:-}
+      - TRUSTSTORE_PASSWORD=changeit
+    networks:
+      - ssl-test-network
+
+networks:
+  ssl-test-network:
+    driver: bridge
