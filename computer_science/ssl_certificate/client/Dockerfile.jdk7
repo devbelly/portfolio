@@ -1,0 +1,21 @@
+# JDK 7 클라이언트 Docker 이미지
+# 새로운 Root CA를 신뢰하지 않는 구버전 JDK 환경 시뮬레이션
+# ARM64 (Apple Silicon) 지원
+
+FROM eclipse-temurin:8-jdk
+
+WORKDIR /app
+
+# Maven 빌드 결과물 복사
+COPY target/ssl-client-1.0.0.jar client.jar
+
+# 인증서 디렉토리 생성
+RUN mkdir /certs
+
+# 기본 환경 변수
+ENV SERVER_URL=https://ssl-server:8443/health
+ENV TRUSTSTORE_PATH=""
+ENV TRUSTSTORE_PASSWORD=changeit
+
+# 서버 준비를 위해 대기 후 클라이언트 실행
+CMD ["sh", "-c", "sleep 5 && java -jar client.jar"]
